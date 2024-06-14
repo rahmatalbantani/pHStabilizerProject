@@ -19,7 +19,7 @@ float pHValue;
 // Definisi variabel untuk fungsi keanggotaan kecepatan motor
 uint8_t speed_low = 100;
 uint8_t speed_high = 255;
-uint8_t pengaduk = 2;  //Pin adukan
+uint8_t pengaduk = 4;  //Pin adukan
 uint8_t tinggi_default = 5;
 uint16_t set_point_nutrisi, set_point_ph;
 uint32_t nutrisi, pHplus, pHmin;
@@ -192,7 +192,7 @@ void update_lcd(String layar1, String layar2, String layar3, String layar4) {
 
 void getdata(){
     // Check if data is available on the serial port
-  if (mySerial.available() > 0) {
+  while (mySerial.available() > 0) {
     // Read the incoming data
     char incomingByte = mySerial.read();
     
@@ -241,6 +241,7 @@ void setup() {
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("==Welcome===");
+  Serial.println("Ready");
   delay(2000);
   lcd.clear();
 }

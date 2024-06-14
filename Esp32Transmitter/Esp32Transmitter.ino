@@ -110,7 +110,7 @@ void UltrasonicInitialize() {
 }
 
 void send_serial() {
-  if (millis() - waktu_sekarang >= 500) {
+  if (millis() - waktu_sekarang >= 2000) {
     waktu_sekarang = millis();
     Serial2.println(String() + "#" + Nutrisi + "#" + pHdown + "#" + pHup);
     Serial.println(String() + "Data Terkirim" + "#" + Nutrisi + "#" + pHdown + "#" + pHup+"\t|| NutrientLimit : "+st_nutrisi);
@@ -164,6 +164,7 @@ void setup() {
   pinMode(buzzer, OUTPUT);
   UltrasonicInitialize();
   Serial.begin(115200);
+  Serial.println("Initializing");
   // Initialize Serial Port for communication
   Serial2.begin(9600, SERIAL_8N1, 16, 17); // RX=16, TX=17 (sesuaikan dengan koneksi ESP32 Anda)
   connect_wifi();
