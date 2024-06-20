@@ -1,11 +1,16 @@
 #include "SoftwareSerial.h"
+#include <Wire.h>
 #include <LCD_I2C.h>
-LCD_I2C lcd(0x27, 20, 4);
 #define MAX_ARRAY_SIZE 6
+#define ESP32_ADDRESS 0x04
+
+LCD_I2C lcd(0x27, 20, 4);
 String dt[MAX_ARRAY_SIZE];  // Deklarasi array data
 String dataIn;
 bool parsing = false;
 String receivedData = "";
+bool newDataAvailable = false; // Flag untuk menandakan data baru sudah tersedia
+
 
 SoftwareSerial mySerial(4, 12);  //pin rx tx
 
@@ -138,19 +143,11 @@ void setMotorSpeedMinus(int speed) {
 }
 
 void update_lcd(String layar1, String layar2, String layar3, String layar4) {
-  // Variabel statis untuk melacak waktu terakhir LCD diperbarui
-  static unsigned long previousMillis = 0;
-  const long interval = 1000; // Interval waktu dalam milidetik (1 detik)
-  
-  // Dapatkan waktu saat ini
-  unsigned long currentMillis = millis();
 
-  // Periksa apakah sudah waktunya untuk memperbarui LCD
-  if (currentMillis - previousMillis >= interval) {
-    // Simpan waktu pembaruan terakhir
-    previousMillis = currentMillis;
+
 
     // Bersihkan LCD sebelum memperbarui isinya
+    if(newDataAvailable){
     lcd.clear();
     
     lcd.setCursor(0, 0);  // Kolom 1
@@ -178,8 +175,12 @@ void update_lcd(String layar1, String layar2, String layar3, String layar4) {
     lcd.print(layar4);
     lcd.setCursor(6, 3);
     lcd.print("Cm");
-  }
+    newDataAvailable = false; // Reset flag setelah menampilkan data
+    }
+    else{Serial.println("Data Belum Tersedia");}
+  
 }
+
 
 // void send_serial() {
 //   if (millis() - waktu_sekarang >= 3000) {
@@ -190,43 +191,44 @@ void update_lcd(String layar1, String layar2, String layar3, String layar4) {
 //   }
 // }
 
-void getdata(){
-    // Check if data is available on the serial port
-  while (mySerial.available() > 0) {
-    // Read the incoming data
-    char incomingByte = mySerial.read();
-    
-    // If the character is a newline, process the data
-    if (incomingByte == '\n') {
-      // Remove the '#' characters and split the data
-      int firstHash = receivedData.indexOf('#');
-      int secondHash = receivedData.indexOf('#', firstHash + 1);
-      int thirdHash = receivedData.indexOf('#', secondHash + 1);
 
-      // Extract the values from the received string
-      if (firstHash >= 0 && secondHash >= 0 && thirdHash >= 0) {
-        nutrisi = receivedData.substring(firstHash + 1, secondHash).toInt();
-        pHmin = receivedData.substring(secondHash + 1, thirdHash).toInt();
-        pHplus = receivedData.substring(thirdHash + 1).toInt();
-        Serial.println(String()+"Nutrisi : "+nutrisi+"\t -: "+pHmin+"\t +: "+pHplus);
-      }
+void updateData() {
+    static unsigned long previousMillis = 0;
+  const long interval = 1000; // Interval waktu dalam milidetik (1 detik)
+  
+  // Dapatkan waktu saat ini
+  unsigned long currentMillis = millis();
 
-      // Clear the received data string
-      receivedData = "";
-    } else {
-      // Add the incoming byte to the received data string
-      receivedData += incomingByte;
+  // Periksa apakah sudah waktunya untuk memperbarui LCD
+  if (currentMillis - previousMillis >= interval) {
+    // Simpan waktu pembaruan terakhir
+    previousMillis = currentMillis;
+  // Meminta data baru dari ESP32
+  Wire.requestFrom(ESP32_ADDRESS, 6);
+
+  // Memeriksa apakah ada data yang diterima dari ESP32
+  if (Wire.available() >= 6) {
+    byte data[6];
+    for (int i = 0; i < 6; i++) {
+      data[i] = Wire.read();
     }
+
+    // Memparsing data yang diterima
+    nutrisi = *((uint16_t*)&data[0]);
+    pHmin = *((uint16_t*)&data[2]);
+    pHplus = *((uint16_t*)&data[4]);
+
+    // Set flag bahwa data baru sudah tersedia
+    newDataAvailable = true;
+  }
   }
 }
-//    set_point_ph = dataIn[0];
-//    set_point_nutrisi = dataIn[1];
 
 
 void setup() {
   Serial.begin(115200);
   mySerial.begin(9600);
-
+  Wire.begin();
   // Mengatur pin sebagai output
   pinMode(enA, OUTPUT);
   pinMode(in1, OUTPUT);
@@ -247,8 +249,8 @@ void setup() {
 }
 
 void loop() {
-  getdata();
   bacaNilaiSensorPH();
+  updateData();
   // Baca nilai pH dari sensor
   pHValue = Po;  // Fungsi ini harus Anda ganti sesuai dengan sensor pH yang Anda gunakan
   // Atur kecepatan motor berdasarkan nilai pH

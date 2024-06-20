@@ -5,12 +5,15 @@
 #include <WiFiManager.h>
 #include <FirebaseClient.h>
 #include <WiFiClientSecure.h>
+#include <Wire.h>
+
 WiFiClientSecure ssl_client;
 
 
 
 #define WIFI_SSID "UNTIRTA"
 #define WIFI_PASSWORD "untirtajawara"
+#define SLAVE_ADDRESS 0x04
 
 // The API key can be obtained from Firebase console > Project Overview > Project settings.
 #define API_KEY "AIzaSyA-qvRfmHv7OqGoWk2_k3ygbzp5F-jdevQ"
@@ -109,13 +112,13 @@ void UltrasonicInitialize() {
   pinMode(echoPin3, INPUT);
 }
 
-void send_serial() {
-  if (millis() - waktu_sekarang >= 2000) {
-    waktu_sekarang = millis();
-    Serial2.println(String() + "#" + Nutrisi + "#" + pHdown + "#" + pHup);
-    Serial.println(String() + "Data Terkirim" + "#" + Nutrisi + "#" + pHdown + "#" + pHup+"\t|| NutrientLimit : "+st_nutrisi);
-  }
-}
+// void send_serial() {
+//   if (millis() - waktu_sekarang >= 2000) {
+//     waktu_sekarang = millis();
+//     Serial2.println(String() + "#" + Nutrisi + "#" + pHdown + "#" + pHup);
+//     Serial.println(String() + "Data Terkirim" + "#" + Nutrisi + "#" + pHdown + "#" + pHup+"\t|| NutrientLimit : "+st_nutrisi);
+//   }
+// }
 
 void baca_kapasitas() {
   Nutrisi = NutrisiCapacity();
@@ -158,11 +161,27 @@ void sendfirebase(void * parameter) {
 }
 
 
+void requestEvent() {
+  byte data[6];
+  memcpy(data, &Nutrisi, sizeof(Nutrisi));  // Menyalin 2 byte dari var1 ke data
+  memcpy(data + 2, &pHdown, sizeof(pHdown));  // Menyalin 2 byte dari var2 ke data
+  memcpy(data + 4, &pHup, sizeof(pHup));  // Menyalin 2 byte dari var3 ke data
+
+  Wire.write(data, 6); // Mengirim data ke master (Arduino Nano)
+  Serial.print("Sending: ");
+  Serial.print(Nutrisi);
+  Serial.print(" ");
+  Serial.print(pHdown);
+  Serial.print(" ");
+  Serial.println(pHup);
+}
 
 void setup() {
   // Initialize Serial Monitor
   pinMode(buzzer, OUTPUT);
   UltrasonicInitialize();
+  Wire.begin(SLAVE_ADDRESS);
+  Wire.onRequest(requestEvent);
   Serial.begin(115200);
   Serial.println("Initializing");
   // Initialize Serial Port for communication
@@ -187,7 +206,6 @@ void loop() {
   app.loop();
   Database.loop();
   baca_kapasitas();
-  send_serial();
      if (Nutrisi <= st_nutrisi) {
     digitalWrite(buzzer, HIGH);
   }else{

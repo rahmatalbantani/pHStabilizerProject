@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data IoT</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #222222;
+        margin: 0;
+        padding: 0;
+    }
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 50px;
+    }
+    .row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .column {
+        margin: 0 10px;
+    }
+    .box {
+        width: 220px;
+        height: 260px;
+        border: 2px solid #3498db;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 8px;
+        text-align: center;
+        background-color: #1a1a1a;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    .box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    .data {
+        font-size: 20px;
+        color: #ffffff;
+        margin-top: 10px;
+        line-height: 1.4;
+    }
+    .key {
+        font-size: 16px;
+        color: #ffffff;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .input-container {
+        margin-top: 20px;
+    }
+    .input-container input[type="text"] {
+        width: 180px;
+        padding: 8px;
+        border: none;
+        border-radius: 5px;
+        margin-right: 10px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+    .input-container button {
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    .tooltip {
+        visibility: hidden;
+        width: 200px;
+        background-color: #3498db;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px 0;
+        position: absolute;
+        z-index: 1;
+        bottom: 90%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .box:hover .tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="row" id="displayRow"></div>
+    <div class="row" id="setPointRow"></div>
+    <div class="input-container">
+        <input type="text" id="nutrientLimitInput" placeholder="Nutrient Limit">
+        <button onclick="updateNutrientLimit()">Update Nutrient Limit</button>
+    </div>
+    <div class="input-container">
+        <input type="text" id="pHInput" placeholder="pH">
+        <button onclick="updatePH()">Update pH</button>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.3.3/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.3.3/firebase-database.js"></script>
+<script>
+    // Inisialisasi Firebase
+    var firebaseConfig = {
+        apiKey: "AIzaSyA-qvRfmHv7OqGoWk2_k3ygbzp5F-jdevQ",
+        authDomain: "grahitota.firebaseapp.com",
+        databaseURL: "https://grahitota-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "grahitota",
+        storageBucket: "grahitota.appspot.com",
+        messagingSenderId: "806678781012",
+        appId: "1:806678781012:web:16d0a1751396120236e1c1",
+        measurementId: "G-9MHDTQZBDD"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    var tooltips = {
+        'NutrientCapacity': 'Ini adalah Kapasitas Nutrisi Yang Terukur saat ini melalui sensor',
+        'NutrientLimit': 'Ini adalah Batasan Nutrisi yang harus dipertahankan',
+        'pH': 'Ini adalah Tingkat pH yang Terukur',
+        'Temperature': 'Ini adalah Suhu yang Terukur',
+        'pH+': 'pH+ Adalah kapasitas pH+ yang terukur saat ini melalui sensor',
+        'pH-': 'pH- Adalah kapasitas pH+ yang terukur saat ini melalui sensor',
+        'pHTerukur': 'pHterukur adalah pH yang terukur saat ini melalui sensor'
+    };
+
+    function createBox(childKey, childData) {
+        var boxDiv = document.createElement('div');
+        boxDiv.className = 'box';
+        var keyElement = document.createElement('p');
+        keyElement.className = 'key';
+        keyElement.textContent = childKey;
+        var tooltipElement = document.createElement('span');
+        tooltipElement.className = 'tooltip';
+        tooltipElement.textContent = tooltips[childKey] || 'Deskripsi tidak tersedia';
+
+        if (childKey === 'pHTerukur') {
+            // Create thermometer animation
+            var thermometerDiv = document.createElement('div');
+            thermometerDiv.style.width = '60px';
+            thermometerDiv.style.height = '160px';
+            thermometerDiv.style.background = 'linear-gradient(to top, #ff3333, #ff6666, #ff9999, #ffffff)';
+            thermometerDiv.style.borderRadius = '30px';
+            thermometerDiv.style.margin = '10px auto';
+            thermometerDiv.style.position = 'relative';
+
+            var mercuryDiv = document.createElement('div');
+            mercuryDiv.style.width = '100%';
+            mercuryDiv.style.position = 'absolute';
+            mercuryDiv.style.bottom = '0';
+            mercuryDiv.style.background = '#ff3333';
+            mercuryDiv.style.borderRadius = '30px';
+            mercuryDiv.style.transition = 'height 0.5s ease-out';
+            mercuryDiv.style.height = (childData / 14 * 100) + '%'; // Assuming pH scale from 0 to 14
+
+            thermometerDiv.appendChild(mercuryDiv);
+            boxDiv.appendChild(thermometerDiv);
+        }
+        else if(childKey === 'pH'){
+            // Create thermometer animation
+            var thermometerDiv = document.createElement('div');
+            thermometerDiv.style.width = '60px';
+            thermometerDiv.style.height = '160px';
+            thermometerDiv.style.background = 'linear-gradient(to top, #ff3333, #ff6666, #ff9999, #ffffff)';
+            thermometerDiv.style.borderRadius = '30px';
+            thermometerDiv.style.margin = '10px auto';
+            thermometerDiv.style.position = 'relative';
+
+            var mercuryDiv = document.createElement('div');
+            mercuryDiv.style.width = '100%';
+            mercuryDiv.style.position = 'absolute';
+            mercuryDiv.style.bottom = '0';
+            mercuryDiv.style.background = '#ff3333';
+            mercuryDiv.style.borderRadius = '30px';
+            mercuryDiv.style.transition = 'height 0.5s ease-out';
+            mercuryDiv.style.height = (childData / 14 * 100) + '%'; // Assuming pH scale from 0 to 14
+
+            thermometerDiv.appendChild(mercuryDiv);
+            boxDiv.appendChild(thermometerDiv);
+        } 
+        else {
+            var canvas = document.createElement('canvas');
+            canvas.width = 180;
+            canvas.height = 180;
+            boxDiv.appendChild(canvas);
+
+            drawSpeedometer(canvas, childData);
+        }
+
+        var valueElement = document.createElement('p');
+        valueElement.className = 'data';
+        valueElement.textContent = childData;
+
+        boxDiv.appendChild(keyElement);
+        boxDiv.appendChild(valueElement);
+        boxDiv.appendChild(tooltipElement);
+
+        return boxDiv;
+    }
+
+    function drawSpeedometer(canvas, value) {
+        var ctx = canvas.getContext('2d');
+        var centerX = canvas.width / 2;
+        var centerY = canvas.height / 2;
+        var radius = 70;
+        var startAngle = Math.PI * 0.75;
+        var endAngle = Math.PI * 2.25;
+        var currentAngle = startAngle + (endAngle - startAngle) * (value / 100);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background arc
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.lineWidth = 20;
+        ctx.strokeStyle = '#ccc';
+        ctx.stroke();
+
+        // Foreground arc
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, currentAngle);
+        ctx.lineWidth = 20;
+        var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#3498db');
+        gradient.addColorStop(1, '#2ecc71');
+        ctx.strokeStyle = gradient;
+        ctx.stroke();
+
+        // Needle
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + radius * Math.cos(currentAngle), centerY + radius * Math.sin(currentAngle));
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#e74c3c';
+        ctx.stroke();
+
+        // Center circle
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fill();
+
+        // Min and Max markers
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText('0', centerX - radius - 5, centerY + 80); // Adjusted position for '0'
+        ctx.fillText('100', centerX + radius + 5, centerY + 80); // Adjusted position for '100'
+    }
+
+    // Referensi ke Firebase Database untuk "data/Display"
+    var displayRef = firebase.database().ref('data/Display');
+    displayRef.on('value', function(snapshot) {
+        var displayRow = document.getElementById('displayRow');
+        displayRow.innerHTML = '';
+        snapshot.forEach(function(childSnapshot) {
+            var childKey = childSnapshot.key;
+            var childData = childSnapshot.val();
+            var boxDiv = createBox(childKey, childData);
+            displayRow.appendChild(boxDiv);
+        });
+    });
+
+    // Referensi ke Firebase Database untuk "data/SetPoint"
+    var setPointRef = firebase.database().ref('data/SetPoint');
+    setPointRef.on('value', function(snapshot) {
+        var setPointRow = document.getElementById('setPointRow');
+        setPointRow.innerHTML = '';
+        snapshot.forEach(function(childSnapshot) {
+            var childKey = childSnapshot.key;
+            var childData = childSnapshot.val();
+            var boxDiv = createBox(childKey, childData);
+            setPointRow.appendChild(boxDiv);
+        });
+    });
+
+    function updateNutrientLimit() {
+        var nutrientLimitInput = parseInt(document.getElementById('nutrientLimitInput').value);
+        firebase.database().ref('data/SetPoint/NutrientLimit').set(nutrientLimitInput);
+    }
+
+    function updatePH() {
+        var pHInput = parseInt(document.getElementById('pHInput').value);
+        firebase.database().ref('data/SetPoint/pH').set(pHInput);
+    }
+</script>
+</body>
+</html>
