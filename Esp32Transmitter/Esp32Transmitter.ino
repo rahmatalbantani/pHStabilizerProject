@@ -44,6 +44,7 @@ unsigned long lastFirebaseUpdate = 0;
 unsigned long firebaseInterval = 3000; // interval to update Firebase in milliseconds
 
 
+
 void setupfirebase(){
   ssl_client.setInsecure();
   initializeApp(aClient, app, getAuth(user_auth), asyncCB, "authTask");
@@ -55,12 +56,13 @@ void setupfirebase(){
 
 // Define pins
 const int trigPin1 = 23;
-const int echoPin1 = 22;
+const int echoPin1 = 19;
 const int trigPin2 = 4;
 const int echoPin2 = 5;
 const int trigPin3 = 13;
 const int echoPin3 = 14;
-int Nutrisi, pHdown, pHup, st_nutrisi, st_pH, pH;
+int Nutrisi, pHdown, pHup, st_nutrisi, st_pH;
+float pH;
 int buzzer = 18; // pin Buzzer
 String tst_nutrisi;
 
@@ -119,6 +121,27 @@ void UltrasonicInitialize() {
 //     Serial.println(String() + "Data Terkirim" + "#" + Nutrisi + "#" + pHdown + "#" + pHup+"\t|| NutrientLimit : "+st_nutrisi);
 //   }
 // }
+
+void getpH(){
+
+   unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    // Save the last time you read the data
+    previousMillis = currentMillis;
+  while (Serial2.available() > 0) {
+    // Read the incoming data as a string
+    String receivedData = Serial2.readStringUntil('\n');
+
+    // Convert the received data to float
+    pH = receivedData.toFloat();
+
+    // Print the received float data
+    Serial.print("Received float data: ");
+    Serial.println(pH);
+  }
+}
+}
 
 void baca_kapasitas() {
   Nutrisi = NutrisiCapacity();
@@ -206,6 +229,7 @@ void loop() {
   app.loop();
   Database.loop();
   baca_kapasitas();
+  getpH();
      if (Nutrisi <= st_nutrisi) {
     digitalWrite(buzzer, HIGH);
   }else{

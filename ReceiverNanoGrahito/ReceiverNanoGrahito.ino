@@ -16,7 +16,7 @@ SoftwareSerial mySerial(4, 12);  //pin rx tx
 
 const int sensorpH = A1;  //pin pH
 float Po = 0;
-float kalibration = 0.205;
+float kalibration = -0.4243;
 // Definisi variabel untuk fungsi keanggotaan pH
 float pH_low = 4.5;
 float pH_high = 8.5;
@@ -118,12 +118,19 @@ float bacaNilaiSensorPH() {
   int pengukuranPh = analogRead(sensorpH);
   double TeganganPh = 5 / 1024.0 * pengukuranPh;
   //Po = 7.00 + ((teganganPh7 - TeganganPh) / PhStep);
-  Po = 7.00 + ((2.676 - TeganganPh) / kalibration);
+  Po = 7.00 + ((2.58 - TeganganPh) / kalibration);
   //Serial.print("Nilai PH cairan: ");
-  // Serial.println(Po, 3);
-  delay(300);
-  mySerial.write(Po);
-  delay(200);
+  Serial.println(Po, 3);
+  delay(500);
+}
+
+void sendpH(){
+   if (millis() - waktu_sekarang >= 3000) {
+    waktu_sekarang = millis();
+    mySerial.println(Po);
+  }
+
+
 }
 
 // Fungsi untuk mengatur kecepatan motor
@@ -177,7 +184,8 @@ void update_lcd(String layar1, String layar2, String layar3, String layar4) {
     lcd.print("Cm");
     newDataAvailable = false; // Reset flag setelah menampilkan data
     }
-    else{Serial.println("Data Belum Tersedia");}
+    else{//Serial.println("Data Belum Tersedia");
+    }
   
 }
 
@@ -250,6 +258,7 @@ void setup() {
 
 void loop() {
   bacaNilaiSensorPH();
+  sendpH();
   updateData();
   // Baca nilai pH dari sensor
   pHValue = Po;  // Fungsi ini harus Anda ganti sesuai dengan sensor pH yang Anda gunakan
