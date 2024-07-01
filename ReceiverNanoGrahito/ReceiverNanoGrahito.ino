@@ -16,7 +16,10 @@ SoftwareSerial mySerial(4, 12);  //pin rx tx
 
 const int sensorpH = A1;  //pin pH
 float Po = 0;
-float kalibration = -0.4243;
+float Pobefore=0;
+float nosumpo=0;
+int iterasi=1;
+float kalibration = 0.0802;
 // Definisi variabel untuk fungsi keanggotaan pH
 float pH_low = 4.5;
 float pH_high = 8.5;
@@ -118,9 +121,14 @@ float bacaNilaiSensorPH() {
   int pengukuranPh = analogRead(sensorpH);
   double TeganganPh = 5 / 1024.0 * pengukuranPh;
   //Po = 7.00 + ((teganganPh7 - TeganganPh) / PhStep);
-  Po = 7.00 + ((2.58 - TeganganPh) / kalibration);
+  nosumpo= 7.00 + ((3.385 - TeganganPh) / kalibration);
+  Pobefore = Pobefore + nosumpo;
+  Po = Pobefore/iterasi;
+
   //Serial.print("Nilai PH cairan: ");
+  
   Serial.println(Po, 3);
+  iterasi++;
   delay(500);
 }
 
@@ -246,6 +254,13 @@ void setup() {
   pinMode(in4, OUTPUT);
   pinMode(pengaduk, OUTPUT);
   pinMode(sensorpH, INPUT);
+    // Set motor 1 to move forward
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+
+  // Set motor 2 to move forward
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
 
   lcd.begin();
   lcd.backlight();
